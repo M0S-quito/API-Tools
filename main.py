@@ -3,6 +3,9 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 import psutil
 
+from get_status import *
+import tools
+
 BASE_DIR=Path(__file__).resolve().parent
 
 app = FastAPI(
