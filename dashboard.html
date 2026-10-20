@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Pulse — 상태 대시보드</title>
+  <style>
+    :root {
+      --bg: #0a0f1a;
+      --panel: rgba(18, 27, 43, .82);
+      --panel-solid: #121b2b;
+      --line: #25334a;
+      --text: #edf3ff;
+      --muted: #91a0b8;
+      --green: #49d89a;
+      --yellow: #ffcb66;
+      --red: #ff6e7f;
+      --blue: #72a7ff;
+      --shadow: 0 20px 60px rgba(0,0,0,.28);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-width: 320px; color: var(--text); background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-image: radial-gradient(circle at 85% 0%, rgba(61,112,255,.14), transparent 30%), linear-gradient(135deg, rgba(255,255,255,.018) 1px, transparent 1px);
+      background-size: auto, 34px 34px;
+    }
+    .shell { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 32px 0 44px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #35507a; border-radius: 13px; background: linear-gradient(145deg, #193a73, #12213b); color: var(--blue); box-shadow: 0 0 24px rgba(76,130,255,.2); }
+    .brand-mark svg { width: 22px; }
+    .eyebrow { margin: 0 0 3px; color: var(--blue); font-size: 11px; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2, p { margin: 0; } h1 { font-size: clamp(22px, 3vw, 30px); letter-spacing: -.04em; } h2 { font-size: 16px; letter-spacing: -.015em; }
+    .updated { color: var(--muted); font-size: 12px; text-align: right; }
+    .updated strong { color: var(--text); font-weight: 600; }
+    .overview { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+    .card { border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(12px); }
+    .health { min-height: 150px; display: flex; flex-direction: column; justify-content: space-between; padding: 22px; background: linear-gradient(135deg, rgba(33,65,74,.72), var(--panel)); }
+    .health-main { display: flex; align-items: center; gap: 14px; }
+    .pulse { width: 14px; height: 14px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 6px rgba(73,216,154,.12), 0 0 22px var(--green); }
+    .health h2 { font-size: 22px; } .health p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .metric { min-height: 150px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+    .metric-head { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .metric-icon { color: var(--blue); font-size: 18px; } .metric-value { font-size: 30px; font-weight: 720; letter-spacing: -.055em; } .metric-value small { color: var(--muted); font-size: 13px; letter-spacing: 0; font-weight: 500; }
+    .bar { height: 6px; border-radius: 99px; background: #202c41; overflow: hidden; } .bar > i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--blue); transition: width .5s ease; } .bar > i.warn { background: var(--yellow); } .bar > i.danger { background: var(--red); }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .section { padding: 21px; min-width: 0; } .section.full { grid-column: 1 / -1; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 18px; } .section-heading p { color: var(--muted); font-size: 12px; }
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; } .info-item { padding: 13px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(8,14,25,.38); } .info-item label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 7px; } .info-item strong { display: block; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+    .storage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; } .storage { padding: 14px; border: 1px solid var(--line); border-radius: 13px; } .storage-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 13px; } .storage-name { font-weight: 650; font-size: 13px; } .storage-detail { margin-top: 10px; display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; }
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 99px; background: rgba(73,216,154,.1); color: var(--green); font-size: 11px; font-weight: 700; } .status-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; } .status-pill.off { color: var(--red); background: rgba(255,110,127,.1); } .status-pill.neutral { color: var(--yellow); background: rgba(255,203,102,.1); }
+    .service-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; } .service { display: flex; justify-content: space-between; align-items: center; padding: 13px 15px; border: 1px solid var(--line); border-radius: 12px; } .service-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #cdd8ea; font-size: 13px; }
+    .network-table { width: 100%; border-collapse: collapse; font-size: 12px; } .network-table th { padding: 0 10px 10px; color: var(--muted); text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; } .network-table td { padding: 13px 10px; border-top: 1px solid var(--line); } .network-table td:not(:first-child) { color: #bdc9dc; } .network-table .interface { color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 650; } .empty { color: var(--muted); text-align: center; padding: 22px; }
+    .skeleton { color: transparent !important; border-radius: 5px; background: linear-gradient(90deg, #1b273b 25%, #26354d 50%, #1b273b 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; } @keyframes shimmer { to { background-position: -200% 0; } }
+    .error-note { display: none; margin-top: 12px; color: var(--red); font-size: 12px; } body.has-error .error-note { display: block; }
+    @media (max-width: 960px) { .overview { grid-template-columns: 1fr 1fr; } .health { grid-column: 1 / -1; } }
+    @media (max-width: 680px) { .shell { width: min(100% - 28px, 560px); padding-top: 20px; } .topbar { align-items: flex-start; flex-direction: column; gap: 14px; } .updated { text-align: left; } .overview, .grid { grid-template-columns: 1fr; } .health { grid-column: auto; } .info-grid, .storage-grid, .service-list { grid-template-columns: 1fr; } .section.full { grid-column: auto; } .network-table th:nth-child(4), .network-table td:nth-child(4) { display: none; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h4"/><circle cx="17" cy="16" r="1" fill="currentColor" stroke="none"/></svg></div><div><p class="eyebrow">Infrastructure / Live monitor</p><h1>Server Pulse</h1></div></div>
+      <div class="updated">마지막 확인 <strong id="last-updated">—</strong><br><span>자동 갱신 · 10초</span></div>
+    </header>
+
+    <section class="overview" aria-label="서버 요약">
+      <article class="card health"><div class="health-main"><i class="pulse" id="health-dot"></i><div><h2 id="health-title">상태 확인 중</h2><p id="health-copy">서버에 연결하고 있습니다.</p></div></div><div class="error-note" id="error-note">일부 데이터를 불러오지 못했습니다. API 서버 연결을 확인해주세요.</div></article>
+      <article class="card metric"><div class="metric-head"><span>CPU 사용률</span><span class="metric-icon">◒</span></div><div class="metric-value"><span id="cpu-value">—</span><small>%</small></div><div class="bar"><i id="cpu-bar"></i></div></article>
+      <article class="card metric"><div class="metric-head"><span>메모리 사용률</span><span class="metric-icon">▣</span></div><div class="metric-value"><span id="ram-value">—</span><small>%</small></div><div class="bar"><i id="ram-bar"></i></div></article>
+      <article class="card metric"><div class="metric-head"><span>서버 가동 시간</span><span class="metric-icon">◷</span></div><div class="metric-value" id="uptime-value">—</div><div style="color:var(--muted);font-size:11px">API process uptime</div></article>
+    </section>
+
+    <section class="grid">
+      <article class="card section"><div class="section-heading"><h2>서버 정보</h2><p>Hardware profile</p></div><div class="info-grid"><div class="info-item"><label>호스트</label><strong id="host">—</strong></div><div class="info-item"><label>운영체제</label><strong id="os">—</strong></div><div class="info-item"><label>커널</label><strong id="kernel">—</strong></div><div class="info-item"><label>아키텍처</label><strong id="arch">—</strong></div><div class="info-item"><label>CPU</label><strong id="cpu-model">—</strong></div><div class="info-item"><label>메모리</label><strong id="ram-total">—</strong></div></div></article>
+      <article class="card section"><div class="section-heading"><h2>서비스</h2><p>systemd status</p></div><div class="service-list" id="services"><div class="empty">확인 중…</div></div></article>
+      <article class="card section full"><div class="section-heading"><h2>스토리지</h2><p>Mount usage</p></div><div class="storage-grid" id="storage"><div class="empty">확인 중…</div></div></article>
+      <article class="card section full"><div class="section-heading"><h2>네트워크 인터페이스</h2><p>Traffic counters</p></div><div style="overflow-x:auto"><table class="network-table"><thead><tr><th>Interface</th><th>상태</th><th>IPv4</th><th>속도</th><th>수신 / 송신</th></tr></thead><tbody id="network"><tr><td colspan="5" class="empty">확인 중…</td></tr></tbody></table></div></article>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmt = (value, fallback = '—') => value === null || value === undefined || value === '' ? fallback : value;
+    const endpoint = (path) => fetch(path, { cache: 'no-store' }).then((response) => { if (!response.ok) throw new Error(path); return response.json(); });
+    const setBar = (id, value) => { const bar = $(id); const percent = Number(value) || 0; bar.style.width = `${Math.min(100, Math.max(0, percent))}%`; bar.className = percent >= 90 ? 'danger' : percent >= 75 ? 'warn' : ''; };
+    const formatUptime = (seconds) => { const total = Math.max(0, Number(seconds) || 0); const days = Math.floor(total / 86400); const hours = Math.floor(total % 86400 / 3600); const minutes = Math.floor(total % 3600 / 60); return days ? `${days}일 ${hours}시간` : hours ? `${hours}시간 ${minutes}분` : `${minutes}분`; };
+    const statusPill = (status) => { const value = String(status || 'unknown').toLowerCase(); const active = value === 'active' || value === 'ok' || value === 'true'; return `<span class="status-pill ${active ? '' : value === 'unknown' ? 'neutral' : 'off'}">${active ? '정상' : value === 'unknown' ? '확인 필요' : value}</span>`; };
+
+    function render({ api, hardware, resources, storage, network, service }) {
+      const cpu = resources?.cpu?.using_percent; const ram = resources?.ram?.using_percent;
+      $('cpu-value').textContent = fmt(cpu); $('ram-value').textContent = fmt(ram); setBar('cpu-bar', cpu); setBar('ram-bar', ram);
+      $('uptime-value').textContent = formatUptime(api?.uptime); $('last-updated').textContent = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      $('health-title').textContent = api?.status === 'ok' ? 'All systems operational' : '상태 확인 필요'; $('health-copy').textContent = api?.status === 'ok' ? '모든 모니터링 항목이 정상입니다.' : 'API가 정상 상태를 반환하지 않았습니다.';
+      $('health-dot').style.background = api?.status === 'ok' ? 'var(--green)' : 'var(--red)';
+      $('host').textContent = fmt(hardware?.name); $('os').textContent = fmt(hardware?.os); $('kernel').textContent = fmt(hardware?.kernel); $('arch').textContent = fmt(hardware?.architechure || hardware?.architecture); $('cpu-model').textContent = fmt(hardware?.cpu?.model); $('ram-total').textContent = hardware?.ram?.total_gb ? `${hardware.ram.total_gb} GB` : '—';
+      const serviceEntries = Object.entries(service || {}); $('services').innerHTML = serviceEntries.length ? serviceEntries.map(([name, value]) => `<div class="service"><span class="service-name">${name}</span>${statusPill(value)}</div>`).join('') : '<div class="empty">서비스 정보가 없습니다.</div>';
+      const storageEntries = Object.entries(storage || {}); $('storage').innerHTML = storageEntries.length ? storageEntries.map(([name, disk]) => { const usage = disk.usage_percent || 0; return `<div class="storage"><div class="storage-top"><span class="storage-name">${name}</span>${disk.mounted ? statusPill('active') : statusPill('offline')}</div>${disk.mounted ? `<div class="bar"><i class="${usage >= 90 ? 'danger' : usage >= 75 ? 'warn' : ''}" style="width:${usage}%"></i></div><div class="storage-detail"><span>${disk.used_gb} / ${disk.total_gb} GB</span><span>${usage}%</span></div>` : '<div style="color:var(--muted);font-size:12px">마운트되지 않음</div>'}</div>`; }).join('') : '<div class="empty">스토리지 정보가 없습니다.</div>';
+      const networkEntries = Object.entries(network || {}); $('network').innerHTML = networkEntries.length ? networkEntries.map(([name, item]) => `<tr><td class="interface">${name}</td><td>${item.connected ? statusPill('active') : statusPill('offline')}</td><td>${(item.ipv4 || []).join(', ') || '—'}</td><td>${item.speed_mbps ? item.speed_mbps + ' Mbps' : '—'}</td><td>${fmt(item.received_mb, '—')} / ${fmt(item.sent_mb, '—')} MB</td></tr>`).join('') : '<tr><td colspan="5" class="empty">네트워크 정보가 없습니다.</td></tr>';
+    }
+
+    async function refresh() {
+      try { const [api, hardware, resources, storage, network, service] = await Promise.all(['/api/status', '/api/server/hardware', '/api/server/resources', '/api/server/storage', '/api/server/network', '/api/server/service'].map(endpoint)); render({ api, hardware, resources, storage, network, service }); document.body.classList.remove('has-error'); }
+      catch (error) { document.body.classList.add('has-error'); $('health-title').textContent = '연결할 수 없음'; $('health-copy').textContent = '서버 상태 API에 연결되지 않았습니다.'; $('health-dot').style.background = 'var(--red)'; $('last-updated').textContent = '연결 실패'; console.error(error); }
+    }
+    refresh(); setInterval(refresh, 10000);
+  </script>
+</body>
+</html>
