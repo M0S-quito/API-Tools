@@ -116,7 +116,8 @@ def get_storage():
 
 SERVICES=[
     "ssh",
-    "tailscaled"
+    "tailscaled",
+    "api-tools"
 ]
 
 def get_service():
