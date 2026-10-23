@@ -117,7 +117,8 @@ def get_storage():
 SERVICES=[
     "ssh",
     "tailscaled",
-    "api-tools"
+    "api-tools",
+    "syncthing@m0squito.service"
 ]
 
 def get_service():
